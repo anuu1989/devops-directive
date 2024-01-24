@@ -1,0 +1,65 @@
+{
+	"builders": [
+		{
+			"type": "amazon-ebs",
+			"access_key": "AKIAVXDPEROL6CMGKLIT",
+    		"secret_key": "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",
+    		"region": "ap-east-1",
+			"source_ami": "ami-011a403f2a9b2c39f",
+			"instance_type": "t3.micro",
+			"ssh_username": "ec2-user",
+			"ami_name": "rhel8-cis-hardened-AMI-latest-{{timestamp}}",
+			"tags": {
+				"name": "rhel8-cis-hardened-AMI",
+				"timestamp": "{{timestamp}}",
+				"encrypted": "yes",
+				"project": "AIA",
+				"env": "Scoreboard/Sandbox"
+			}
+		}
+	],
+	"provisioners": [
+
+		{
+		  "type":"shell",
+		  "inline_shebang":"/bin/bash",
+		  "inline":[
+			"sudo bash",
+			"sudo yum -y update",
+			"sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm",
+			"sudo yum -y install python-jinja2 python-paramiko PyYAML",
+			"sudo yum -y install ansible",
+			"sudo mkdir -p /tmp/packer-provisioner-ansible-local/roles",
+			"sudo chmod -R 777 /tmp/packer-provisioner-ansible-local/"
+		  ]
+		},
+		
+		{
+			"type": "file",
+			"source":"./",
+			"destination": "/tmp/packer-provisioner-ansible-local"
+		},
+		
+		{
+		  "type": "ansible-local",
+		  "playbook_file": "./ansible/playbook.yml",
+		  "role_paths": [
+			"./ansible/roles/base",
+			"./ansible/roles/rhel8cis"
+		  ],
+		  "playbook_dir": "ansible"
+		 
+		},
+  
+		{
+		  "type": "shell",
+		  "execute_command": "{{ .Vars }} sudo -E /bin/sh -ex '{{ .Path }}'",
+		  "inline": [
+			  "sleep 20s",
+			  "sudo yum remove ansible -y",
+			  "sudo rm -rf /tmp/*", "rm -f /tmp/.ansible-lock.*", 
+			  "echo Complete..."
+		  ]
+	  }
+	  ]
+}
